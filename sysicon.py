@@ -27,7 +27,8 @@ class Main(QtCore.QThread):
     def update_db_date(self):
         if self.date != self.get_current_date():
             self.date = self.get_current_date()
-            self.db = TinyDB(self.db_folder + self.date + ".json", default_table='arduino')
+            self.db = TinyDB(self.db_folder + self.date + ".json", default_table='arduino',
+                             sort_keys=True, indent=4)
 
     def get_current_date(self):
         date = datetime.now().strftime("%y-%m-%d")
