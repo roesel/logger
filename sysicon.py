@@ -11,7 +11,7 @@ from tinydb import TinyDB, where
 class Main(QtCore.QThread):
     # this object is referenced as self.thread from SystemTrayIcon
     on = True
-    interval = 2
+    interval = 60
     file_location = os.path.join("C:\\", "Users", "User", "Desktop", "temp_log.txt")
     db_folder = os.path.join("C:\\", "Data\\")
     date = None
@@ -73,7 +73,7 @@ class Main(QtCore.QThread):
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     s1_freq = 5  # [s]
-    intervals = [2, 10]
+    intervals = [60, 600]
 
     def __init__(self, icon, parent=None, thread=None):
 
@@ -85,8 +85,8 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         submenu = QtWidgets.QMenu(menu)
         submenu.setTitle("Sensor 1")
 
-        item_interval_1 = submenu.addAction("2 s")
-        item_interval_2 = submenu.addAction("10 s")
+        item_interval_1 = submenu.addAction("1 m")
+        item_interval_2 = submenu.addAction("10 m")
 
         item_start = submenu.addAction("Start")
         item_stop = submenu.addAction("Stop")
