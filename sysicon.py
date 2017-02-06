@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 import functools
 import os
+from tinydb import TinyDB, where
 
 
 class Main(QtCore.QThread):
@@ -12,14 +13,25 @@ class Main(QtCore.QThread):
     on = True
     interval = 2
     file_location = os.path.join("C:\\", "Users", "User", "Desktop", "temp_log.txt")
+    db_folder = os.path.join("C:\\", "Data\\")
+    date = None
+    # self.db
 
     def __init__(self):
         QtCore.QThread.__init__(self)
 
         self.s1 = Sensor("COM3")
 
-        with open(self.file_location, 'w', encoding='utf-8') as outfile:
-            outfile.write("# Time                          Temp       Dewpoint   Humidity\n")
+        self.update_db_date()
+
+    def update_db_date(self):
+        if self.date != self.get_current_date():
+            self.date = self.get_current_date()
+            self.db = TinyDB(self.db_folder + self.date + ".json", default_table='arduino')
+
+    def get_current_date(self):
+        date = datetime.now().strftime("%y-%m-%d")
+        return date
 
     def run(self):
         '''
@@ -33,9 +45,11 @@ class Main(QtCore.QThread):
     def get_measurement(self):
         reading = self.s1.read()
         print(reading)
-        with open(self.file_location, 'a') as outfile:
-            outfile.write("{0:}      {1:.2f}      {2:.2f}      {3:.2f}\n".format(
-                str(datetime.now()), reading["temperature"], reading["dewpoint"], reading["humidity"]))
+        reading['stamp'] = int(time.time() * 1000)
+        reading['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        self.update_db_date()
+        self.db.insert(reading)
 
     def set_interval(self, interval):
         '''
@@ -93,28 +107,11 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
         print("Tray icon set up.")
 
-        # self.run()
-
-    def run(self):
-        with open("C:\\Users\\roese\\Desktop\\temp_log.txt", 'a') as outfile:
-            outfile.write("# Time                          Temp       Dewpoint   Humidity\n")
-        while True:
-            print("Sleeping for {} seconds.".format(self.s1_freq))
-            self.artSleep(self.s1_freq * 1000)
-            reading = self.s1.read()
-            print(reading)
-            with open("C:\\Users\\roese\\Desktop\\temp_log.txt", 'a') as outfile:
-                outfile.write("{0:}      {1:.2f}      {2:.2f}      {3:.2f}\n".format(
-                    str(datetime.now()), reading["temperature"], reading["dewpoint"], reading["humidity"]))
-
     def artSleep(self, sleepTime):
         stop_time = QtCore.QTime()
         stop_time.restart()
         while stop_time.elapsed() < sleepTime:
             QtWidgets.QApplication.processEvents(QtCore.QEventLoop.AllEvents, 0)
-
-    def set_period(self, period):
-        print("Measuring period set to {}.".format(period))
 
     def exit(self):
         self.hide()
