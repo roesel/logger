@@ -15,9 +15,6 @@ class Ui_browsergui(object):
         browsergui.setMinimumSize(QtCore.QSize(900, 0))
         self.gridLayout = QtWidgets.QGridLayout(browsergui)
         self.gridLayout.setObjectName("gridLayout")
-        self.btnTest = QtWidgets.QPushButton(browsergui)
-        self.btnTest.setObjectName("btnTest")
-        self.gridLayout.addWidget(self.btnTest, 3, 1, 1, 1)
         self.mplwindow = QtWidgets.QWidget(browsergui)
         self.mplwindow.setMinimumSize(QtCore.QSize(0, 0))
         self.mplwindow.setBaseSize(QtCore.QSize(0, 0))
@@ -26,9 +23,9 @@ class Ui_browsergui(object):
         self.mplvl.setContentsMargins(0, 0, 0, 0)
         self.mplvl.setObjectName("mplvl")
         self.gridLayout.addWidget(self.mplwindow, 0, 0, 4, 1)
-        self.btnTest2 = QtWidgets.QPushButton(browsergui)
-        self.btnTest2.setObjectName("btnTest2")
-        self.gridLayout.addWidget(self.btnTest2, 3, 2, 1, 1)
+        self.btnOpenFile = QtWidgets.QPushButton(browsergui)
+        self.btnOpenFile.setObjectName("btnOpenFile")
+        self.gridLayout.addWidget(self.btnOpenFile, 3, 1, 1, 1)
 
         self.retranslateUi(browsergui)
         QtCore.QMetaObject.connectSlotsByName(browsergui)
@@ -36,8 +33,7 @@ class Ui_browsergui(object):
     def retranslateUi(self, browsergui):
         _translate = QtCore.QCoreApplication.translate
         browsergui.setWindowTitle(_translate("browsergui", "Browser"))
-        self.btnTest.setText(_translate("browsergui", "Test"))
-        self.btnTest2.setText(_translate("browsergui", "Test2"))
+        self.btnOpenFile.setText(_translate("browsergui", "Open File"))
 
 
 if __name__ == "__main__":
