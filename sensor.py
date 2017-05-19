@@ -6,6 +6,7 @@ import json
 
 
 class Sensor:
+    commands = {1: b'K', 2: b'L'}
 
     def __init__(self, address):
         """
@@ -13,13 +14,13 @@ class Sensor:
         """
         self.ser = serial.Serial(address, 9600)
 
-    def read(self):
-        response = self.read_measurement()
+    def read(self, sensor_id):
+        response = self.read_measurement(sensor_id)
         data = self.convert_response(response)
         return(data)
 
-    def read_measurement(self):
-        self.ser.write(b'L')
+    def read_measurement(self, sensor_id):
+        self.ser.write(self.commands[sensor_id])
 
         bytes_response = self.ser.readline()
         string_response = str(bytes_response, 'utf-8')

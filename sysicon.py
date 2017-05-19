@@ -20,7 +20,7 @@ class Main(QtCore.QThread):
     def __init__(self):
         QtCore.QThread.__init__(self)
 
-        self.s1 = Sensor("COM3")
+        self.s1 = Sensor("COM4")
 
         self.update_db_date()
 
@@ -40,11 +40,12 @@ class Main(QtCore.QThread):
         '''
         while True:
             if self.on:
-                self.get_measurement()
+                self.get_measurement(1)
+                self.get_measurement(2)
             time.sleep(self.interval)
 
-    def get_measurement(self):
-        reading = self.s1.read()
+    def get_measurement(self, sensor_id):
+        reading = self.s1.read(sensor_id)
         print(reading)
         reading['stamp'] = int(time.time() * 1000)
         reading['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -98,8 +99,10 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         # s1_5s.triggered.connect(lambda period=5: self.set_period(period))
         # s1_10s.triggered.connect(lambda period=10: self.set_period(period))
 
-        item_interval_1.triggered.connect(functools.partial(self.thread.set_interval, self.intervals[0]))
-        item_interval_2.triggered.connect(functools.partial(self.thread.set_interval, self.intervals[1]))
+        item_interval_1.triggered.connect(functools.partial(
+            self.thread.set_interval, self.intervals[0]))
+        item_interval_2.triggered.connect(functools.partial(
+            self.thread.set_interval, self.intervals[1]))
 
         item_start.triggered.connect(functools.partial(self.thread.turn, True))
         item_stop.triggered.connect(functools.partial(self.thread.turn, False))
@@ -131,6 +134,7 @@ def main():
     mainThread.start()  # run will be executed in a separate thread
 
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     main()
