@@ -10,17 +10,18 @@ from tinydb import TinyDB, where
 
 class Main(QtCore.QThread):
     # this object is referenced as self.thread from SystemTrayIcon
-    on = True
-    interval = 60
     file_location = os.path.join("C:\\", "Users", "User", "Desktop", "temp_log.txt")
     db_folder = os.path.join("C:\\", "Data\\")
     date = None
     # self.db
 
-    def __init__(self):
+    def __init__(self, sensors):
         QtCore.QThread.__init__(self)
-
         self.s1 = Sensor("COM4")
+        self.sensors = sensors
+        for k, d in self.sensors.items():
+            d['on'] = True
+            d['interval'] = 60
 
         self.update_db_date()
 
@@ -39,13 +40,14 @@ class Main(QtCore.QThread):
         Main loop of the measuring thread.
         '''
         while True:
-            if self.on:
-                self.get_measurement(1)
-                self.get_measurement(2)
+            for k in self.sensors.keys():
+                if self.sensors[k]['on']:
+                    self.get_measurement(self.sensors[k]['key'])
+            # We need to time stuff rather than sleep :(
             time.sleep(self.interval)
 
-    def get_measurement(self, sensor_id):
-        reading = self.s1.read(sensor_id)
+    def get_measurement(self, sensor_key):
+        reading = self.s1.read(sensor_key)
         print(reading)
         reading['stamp'] = int(time.time() * 1000)
         reading['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -76,36 +78,35 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     s1_freq = 5  # [s]
     intervals = [60, 600]
 
-    def __init__(self, icon, parent=None, thread=None):
+    def __init__(self, icon, sensors, parent=None, thread=None):
 
         self.thread = thread
+        self.sensors = sensors
 
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
-        menu = QtWidgets.QMenu(parent)
+        menu = QtWidgets.QMenu(parent)  # Hlavní widget
 
-        submenu = QtWidgets.QMenu(menu)
-        submenu.setTitle("Sensor 1")
+        for k, s in self.sensors.items():
+            submenu = QtWidgets.QMenu(menu)
+            submenu.setTitle(s['name'])
 
-        item_interval_1 = submenu.addAction("1 m")
-        item_interval_2 = submenu.addAction("10 m")
+            item_interval_1 = submenu.addAction("1 m")
+            item_interval_2 = submenu.addAction("10 m")
 
-        item_start = submenu.addAction("Start")
-        item_stop = submenu.addAction("Stop")
-        menu.addMenu(submenu)
+            item_start = submenu.addAction("Start")
+            item_stop = submenu.addAction("Stop")
+            menu.addMenu(submenu)
+
+            item_interval_1.triggered.connect(functools.partial(
+                self.thread.set_interval, self.intervals[0]))
+            item_interval_2.triggered.connect(functools.partial(
+                self.thread.set_interval, self.intervals[1]))
+
+            item_start.triggered.connect(functools.partial(self.thread.turn, True))
+            item_stop.triggered.connect(functools.partial(self.thread.turn, False))
 
         exitAction = menu.addAction("Exit")
         self.setContextMenu(menu)
-
-        # s1_5s.triggered.connect(lambda period=5: self.set_period(period))
-        # s1_10s.triggered.connect(lambda period=10: self.set_period(period))
-
-        item_interval_1.triggered.connect(functools.partial(
-            self.thread.set_interval, self.intervals[0]))
-        item_interval_2.triggered.connect(functools.partial(
-            self.thread.set_interval, self.intervals[1]))
-
-        item_start.triggered.connect(functools.partial(self.thread.turn, True))
-        item_stop.triggered.connect(functools.partial(self.thread.turn, False))
 
         exitAction.triggered.connect(self.exit)
 
@@ -126,8 +127,19 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     w = QtWidgets.QWidget()
 
-    mainThread = Main()  # build the thread object (it won't be running yet)
-    trayIcon = SystemTrayIcon(QtGui.QIcon("Logger.png"), w, thread=mainThread)
+    sensors = {
+        's1': {
+            'name': 'Sensor 1',
+            'key': b'L'
+        },
+        's2': {
+            'name': 'Sensor 2',
+            'key': b'K'
+        }
+    }
+
+    mainThread = Main(sensors)  # build the thread object (it won't be running yet)
+    trayIcon = SystemTrayIcon(QtGui.QIcon("Logger.png"), sensors, parent=w, thread=mainThread)
 
     trayIcon.show()
 
