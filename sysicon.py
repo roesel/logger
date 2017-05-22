@@ -22,6 +22,7 @@ class Main(QtCore.QThread):
         for k, d in self.sensors.items():
             d['on'] = True
             d['interval'] = 60
+            d['last_measurement'] = 0
 
         self.update_db_date()
 
@@ -42,9 +43,11 @@ class Main(QtCore.QThread):
         while True:
             for k in self.sensors.keys():
                 if self.sensors[k]['on']:
-                    self.get_measurement(self.sensors[k]['key'])
-            # We need to time stuff rather than sleep :(
-            time.sleep(self.interval)
+                    if time.time() - self.sensors[k]['last_measurement'] > self.sensors[k]['interval']:
+                        self.get_measurement(self.sensors[k]['key'])
+                        self.sensors[k]['last_measurement'] = time.time()
+            # Maximum measuring frequency
+            time.sleep(1)
 
     def get_measurement(self, sensor_key):
         reading = self.s1.read(sensor_key)
@@ -55,33 +58,51 @@ class Main(QtCore.QThread):
         self.update_db_date()
         self.db.insert(reading)
 
-    def set_interval(self, interval):
+    def min_label(self, minutes):
+        return {1: 'minuta', 2: 'minuty', 3: 'minuty', 4: 'minuty'}.get(minutes, 'minut')
+
+    def sec_label(self, minutes):
+        return {1: 'vteřina', 2: 'vteřiny', 3: 'vteřiny', 4: 'vteřiny'}.get(minutes, 'vtěřin')
+
+    def pretty_time(self, seconds):
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        if h == 0:
+            if m != 0 and s == 0:
+                return "{} ".format(m) + self.min_label(m)
+            elif s != 0 and m == 0:
+                return "{} ".format(s) + self.sec_label(m)
+            else:
+                return "%02d:%02d" % (m, s)
+        elif h == 0 and m == 0 and s > 0:
+            return "%02d min" % m
+        else:
+            return "%d:%02d:%02d" % (h, m, s)
+
+    def set_interval(self, key, interval):
         '''
         Sets measuring interval.
         '''
-        self.interval = interval
-        print("Measuring interval set to {}.".format(interval))
+        self.sensors[key]['interval'] = interval
+        print("Interval sensoru `{}` nastaven na {}.".format(
+            self.sensors[key]['name'], self.pretty_time(interval)))
 
-    # Turn ON / OFF functions -------------------------------------------------
-    def turn_on(self):
-        self.on = True
-
-    def turn_off(self):
-        self.on = False
-
-    def turn(self, status):
-        print("Turn received status {}".format(status))
-        self.on = status
+    def turn(self, k, status):
+        st = ['vypnut', 'zapnut']
+        if self.sensors[k]['on'] != status:
+            self.sensors[k]['on'] = status
+            print("{} byl {}.".format(self.sensors[k]['name'], st[status]))
+        else:
+            print("{} byl už {}, žádná změna.".format(self.sensors[k]['name'], st[status]))
 
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
-    s1_freq = 5  # [s]
-    intervals = [60, 600]
 
-    def __init__(self, icon, sensors, parent=None, thread=None):
+    def __init__(self, icon, sensors, intervals, parent=None, thread=None):
 
         self.thread = thread
         self.sensors = sensors
+        self.intervals = intervals
 
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
         menu = QtWidgets.QMenu(parent)  # Hlavní widget
@@ -90,22 +111,25 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
             submenu = QtWidgets.QMenu(menu)
             submenu.setTitle(s['name'])
 
-            item_interval_1 = submenu.addAction("1 m")
-            item_interval_2 = submenu.addAction("10 m")
+            for i in self.intervals:
+                item_interval = submenu.addAction(self.thread.pretty_time(i))
+                item_interval.triggered.connect(functools.partial(self.thread.set_interval, k, i))
 
-            item_start = submenu.addAction("Start")
-            item_stop = submenu.addAction("Stop")
+            item_start = submenu.addAction("Začít měřit")
+            item_stop = submenu.addAction("Přestat měřit")
+            item_start.setEnabled(False)
+
+            item_start.triggered.connect(functools.partial(self.thread.turn, k, True))
+            item_start.triggered.connect(functools.partial(item_start.setEnabled, False))
+            item_start.triggered.connect(functools.partial(item_stop.setEnabled, True))
+
+            item_stop.triggered.connect(functools.partial(self.thread.turn, k, False))
+            item_stop.triggered.connect(functools.partial(item_start.setEnabled, True))
+            item_stop.triggered.connect(functools.partial(item_stop.setEnabled, False))
+
             menu.addMenu(submenu)
 
-            item_interval_1.triggered.connect(functools.partial(
-                self.thread.set_interval, self.intervals[0]))
-            item_interval_2.triggered.connect(functools.partial(
-                self.thread.set_interval, self.intervals[1]))
-
-            item_start.triggered.connect(functools.partial(self.thread.turn, True))
-            item_stop.triggered.connect(functools.partial(self.thread.turn, False))
-
-        exitAction = menu.addAction("Exit")
+        exitAction = menu.addAction("Ukončit")
         self.setContextMenu(menu)
 
         exitAction.triggered.connect(self.exit)
@@ -127,6 +151,8 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     w = QtWidgets.QWidget()
 
+    intervals = [10, 30, 60, 300]
+
     sensors = {
         's1': {
             'name': 'Sensor 1',
@@ -139,7 +165,8 @@ def main():
     }
 
     mainThread = Main(sensors)  # build the thread object (it won't be running yet)
-    trayIcon = SystemTrayIcon(QtGui.QIcon("Logger.png"), sensors, parent=w, thread=mainThread)
+    trayIcon = SystemTrayIcon(QtGui.QIcon("Logger.png"), sensors,
+                              intervals, parent=w, thread=mainThread)
 
     trayIcon.show()
 
