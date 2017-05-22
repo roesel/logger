@@ -5,26 +5,36 @@ from datetime import datetime
 import time
 import functools
 import os
+import errno
 from tinydb import TinyDB, where
+
+# move db_folder, COM4, ... into settings passed + autosave
 
 
 class Main(QtCore.QThread):
     # this object is referenced as self.thread from SystemTrayIcon
-    file_location = os.path.join("C:\\", "Users", "User", "Desktop", "temp_log.txt")
-    db_folder = os.path.join("C:\\", "Data\\")
     date = None
     # self.db
 
-    def __init__(self, sensors):
+    def __init__(self, config):
         QtCore.QThread.__init__(self)
-        self.s1 = Sensor("COM4")
-        self.sensors = sensors
+        self.s1 = Sensor(config['port'])
+        self.db_folder = config['db_folder']
+        self.make_sure_path_exists(self.db_folder)
+        self.sensors = config['sensors']
         for k, d in self.sensors.items():
-            d['on'] = True
+            d['on'] = False
             d['interval'] = 60
             d['last_measurement'] = 0
 
         self.update_db_date()
+
+    def make_sure_path_exists(self, path):
+        try:
+            os.makedirs(path)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
 
     def update_db_date(self):
         if self.date != self.get_current_date():
@@ -51,7 +61,7 @@ class Main(QtCore.QThread):
 
     def get_measurement(self, sensor_key):
         reading = self.s1.read(sensor_key)
-        print(reading)
+        # print(reading)
         reading['stamp'] = int(time.time() * 1000)
         reading['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -98,11 +108,12 @@ class Main(QtCore.QThread):
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
-    def __init__(self, icon, sensors, intervals, parent=None, thread=None):
+    def __init__(self, icon, config, parent=None, thread=None):
 
         self.thread = thread
-        self.sensors = sensors
-        self.intervals = intervals
+        self.sensors = config['sensors']
+        self.intervals = config['intervals']
+        self.interval_items = {}
 
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
         menu = QtWidgets.QMenu(parent)  # Hlavní widget
@@ -111,23 +122,41 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
             submenu = QtWidgets.QMenu(menu)
             submenu.setTitle(s['name'])
 
-            for i in self.intervals:
-                item_interval = submenu.addAction(self.thread.pretty_time(i))
-                item_interval.triggered.connect(functools.partial(self.thread.set_interval, k, i))
-
             item_start = submenu.addAction("Začít měřit")
             item_stop = submenu.addAction("Přestat měřit")
-            item_start.setEnabled(False)
+
+            red_icon = QtGui.QIcon("images/red.png")
+            green_icon = QtGui.QIcon("images/green.png")
 
             item_start.triggered.connect(functools.partial(self.thread.turn, k, True))
             item_start.triggered.connect(functools.partial(item_start.setEnabled, False))
             item_start.triggered.connect(functools.partial(item_stop.setEnabled, True))
+            item_start.triggered.connect(functools.partial(
+                submenu.setIcon, green_icon))
 
             item_stop.triggered.connect(functools.partial(self.thread.turn, k, False))
             item_stop.triggered.connect(functools.partial(item_start.setEnabled, True))
             item_stop.triggered.connect(functools.partial(item_stop.setEnabled, False))
+            item_stop.triggered.connect(functools.partial(
+                submenu.setIcon, red_icon))
+
+            submenu.addSeparator()
+
+            self.interval_items[k] = {}
+            for i in self.intervals:
+                item_interval = submenu.addAction(self.thread.pretty_time(i))
+                item_interval.triggered.connect(functools.partial(self.thread.set_interval, k, i))
+                item_interval.triggered.connect(functools.partial(self.updateIntervals, k, i))
+                self.interval_items[k][i] = item_interval
 
             menu.addMenu(submenu)
+
+            # ------------------------------------------------------------------
+            submenu.setIcon(QtGui.QIcon("images/green.png"))
+            item_start.setEnabled(False)
+            self.thread.set_interval(k, self.intervals[-1])
+            self.interval_items[k][self.intervals[-1]].setIcon(QtGui.QIcon("images/check.png"))
+            self.thread.turn(k, True)
 
         exitAction = menu.addAction("Ukončit")
         self.setContextMenu(menu)
@@ -135,6 +164,13 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         exitAction.triggered.connect(self.exit)
 
         print("Tray icon set up.")
+
+    def updateIntervals(self, key, interval):
+        for k, v in self.interval_items[key].items():
+            if k == interval:
+                v.setIcon(QtGui.QIcon("images/check.png"))
+            else:
+                v.setIcon(QtGui.QIcon())
 
     def artSleep(self, sleepTime):
         stop_time = QtCore.QTime()
@@ -151,22 +187,24 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     w = QtWidgets.QWidget()
 
-    intervals = [10, 30, 60, 300]
-
-    sensors = {
-        's1': {
-            'name': 'Sensor 1',
-            'key': b'L'
+    config = {
+        'db_folder': os.path.join("C:\\", "LoggerData\\"),
+        'port': "COM4",
+        'intervals': [10, 30, 60, 300],
+        'sensors': {
+            's1': {
+                'name': 'Sensor 1',
+                'key': b'L'
+            },
+            's2': {
+                'name': 'Sensor 2',
+                'key': b'K'
+            },
         },
-        's2': {
-            'name': 'Sensor 2',
-            'key': b'K'
-        }
     }
 
-    mainThread = Main(sensors)  # build the thread object (it won't be running yet)
-    trayIcon = SystemTrayIcon(QtGui.QIcon("Logger.png"), sensors,
-                              intervals, parent=w, thread=mainThread)
+    mainThread = Main(config)  # build the thread object (it won't be running yet)
+    trayIcon = SystemTrayIcon(QtGui.QIcon("images/logs.png"), config, parent=w, thread=mainThread)
 
     trayIcon.show()
 
