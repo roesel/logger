@@ -1,0 +1,20 @@
+{
+  "db_folder": "C:\\LoggerData\\",
+  "port": "COM4",
+  "intervals": [
+    10,
+    30,
+    60,
+    300
+  ],
+  "sensors": {
+    "s1": {
+      "name": "Sensor 1",
+      "key": "L"
+    },
+    "s2": {
+      "name": "Sensor 2",
+      "key": "K"
+    }
+  }
+}

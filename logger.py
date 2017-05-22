@@ -6,9 +6,15 @@ import time
 import functools
 import os
 import errno
+import json
 from tinydb import TinyDB, where
 
-# move db_folder, COM4, ... into settings passed + autosave
+# TODO: rozdělit do více souborů po objektech
+# TODO: přejmenovat objekty (Sensor->Arduino)
+# TODO: vyhodit formátovací fce pryč od logickejch
+# TODO: conf: více cest kam ukládat
+# TODO: pojmenovat senzory, každýmu vlastní soubor
+# DONE: zatím jsem neudělal persistent saving - asi z principu nechceme?
 
 
 class Main(QtCore.QThread):
@@ -54,7 +60,7 @@ class Main(QtCore.QThread):
             for k in self.sensors.keys():
                 if self.sensors[k]['on']:
                     if time.time() - self.sensors[k]['last_measurement'] > self.sensors[k]['interval']:
-                        self.get_measurement(self.sensors[k]['key'])
+                        self.get_measurement(str.encode(self.sensors[k]['key']))
                         self.sensors[k]['last_measurement'] = time.time()
             # Maximum measuring frequency
             time.sleep(1)
@@ -172,7 +178,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
             else:
                 v.setIcon(QtGui.QIcon())
 
-    def artSleep(self, sleepTime):
+    def art_sleep(self, sleepTime):
         stop_time = QtCore.QTime()
         stop_time.restart()
         while stop_time.elapsed() < sleepTime:
@@ -183,25 +189,27 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         QtCore.QCoreApplication.exit()
 
 
+def load_config():
+    config_filename = "config.json"
+    config_sample_filename = "config.sample.json"
+
+    if os.path.isfile(config_filename):  # If config exists, load it
+        with open(config_filename) as jsonfile:
+            config = json.load(jsonfile)
+
+    else:  # If it doesn't exist, load sample and save config
+        with open(config_sample_filename) as jsonfile:
+            config = json.load(jsonfile)
+        with open(config_filename, 'w') as fp:
+            json.dump(config, fp, indent=2)
+    return config
+
+
 def main():
     app = QtWidgets.QApplication(sys.argv)
     w = QtWidgets.QWidget()
 
-    config = {
-        'db_folder': os.path.join("C:\\", "LoggerData\\"),
-        'port': "COM4",
-        'intervals': [10, 30, 60, 300],
-        'sensors': {
-            's1': {
-                'name': 'Sensor 1',
-                'key': b'L'
-            },
-            's2': {
-                'name': 'Sensor 2',
-                'key': b'K'
-            },
-        },
-    }
+    config = load_config()
 
     mainThread = Main(config)  # build the thread object (it won't be running yet)
     trayIcon = SystemTrayIcon(QtGui.QIcon("images/logs.png"), config, parent=w, thread=mainThread)
