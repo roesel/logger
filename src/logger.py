@@ -8,14 +8,15 @@ import errno
 import json
 from tinydb import TinyDB, where
 
-from thread import Main
+from thread import Thread
 from trayicon import SystemTrayIcon
 
 # DONE: rozdělit do více souborů po objektech
-# TODO: přejmenovat objekty (Sensor->Arduino)
-# TODO: vyhodit formátovací fce pryč od logickejch
+# DONE: přejmenovat objekty (Sensor->Arduino)
+# DONE: vyhodit formátovací fce pryč od logickejch
 # TODO: conf: více cest kam ukládat
-# TODO: pojmenovat senzory, každýmu vlastní soubor
+# TODO: conf: více formátů, do kterých ukládat
+# DONE: pojmenovat senzory, každýmu vlastní soubor/složku
 # DONE: zatím jsem neudělal persistent saving - asi z principu nechceme?
 
 
@@ -41,7 +42,7 @@ def main():
 
     config = load_config()
 
-    mainThread = Main(config)  # build the thread object (it won't be running yet)
+    mainThread = Thread(config)  # build the thread object (it won't be running yet)
     trayIcon = SystemTrayIcon(QtGui.QIcon("images/logs.png"), config, parent=w, thread=mainThread)
 
     trayIcon.show()

@@ -7,22 +7,25 @@ import os
 import errno
 import json
 from tinydb import TinyDB, where
-from sensor import Sensor
+from sensor import Arduino
 
 import tools
 
 
-class Main(QtCore.QThread):
+class Thread(QtCore.QThread):
     # this object is referenced as self.thread from SystemTrayIcon
     date = None
-    # self.db
 
     def __init__(self, config):
         QtCore.QThread.__init__(self)
-        self.s1 = Sensor(config['port'])
-        self.db_folder = config['db_folder']
-        self.make_sure_path_exists(self.db_folder)
+        self.s1 = Arduino(config['port'])
         self.sensors = config['sensors']
+        self.db_folder = config['db_folder']
+
+        self.make_sure_path_exists(self.db_folder)
+        for k in self.sensors:
+            self.make_sure_path_exists(self.db_folder + "/" + k)
+
         for k, d in self.sensors.items():
             d['on'] = False
             d['interval'] = 60
@@ -40,8 +43,9 @@ class Main(QtCore.QThread):
     def update_db_date(self):
         if self.date != self.get_current_date():
             self.date = self.get_current_date()
-            self.db = TinyDB(self.db_folder + self.date + ".json", default_table='arduino',
-                             sort_keys=True, indent=4)
+        for key in self.sensors:
+            self.sensors[key]['db'] = TinyDB(
+                self.db_folder + key + "/" + key + "_" + self.date + ".json", default_table='arduino', sort_keys=True, indent=4)
 
     def get_current_date(self):
         date = datetime.now().strftime("%y-%m-%d")
@@ -52,22 +56,26 @@ class Main(QtCore.QThread):
         Main loop of the measuring thread.
         '''
         while True:
-            for k in self.sensors.keys():
+            for k in self.sensors:
                 if self.sensors[k]['on']:
                     if time.time() - self.sensors[k]['last_measurement'] > self.sensors[k]['interval']:
-                        self.get_measurement(str.encode(self.sensors[k]['key']))
+                        self.get_measurement(k)
                         self.sensors[k]['last_measurement'] = time.time()
             # Maximum measuring frequency
             time.sleep(1)
 
+    def insert(self, sensor_key, reading):
+        # TinyDB local storage
+        self.sensors[sensor_key]['db'].insert(reading)
+
     def get_measurement(self, sensor_key):
-        reading = self.s1.read(sensor_key)
+        reading = self.s1.read(str.encode(self.sensors[sensor_key]["key"]))
         # print(reading)
         reading['stamp'] = int(time.time() * 1000)
         reading['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         self.update_db_date()
-        self.db.insert(reading)
+        self.insert(sensor_key, reading)
 
     def set_interval(self, key, interval):
         '''

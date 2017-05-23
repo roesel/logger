@@ -5,11 +5,11 @@ import serial
 import json
 
 
-class Sensor:
+class Arduino:
 
     def __init__(self, address):
         """
-        Address - COM8 ?
+        Address - COM4/8
         """
         self.ser = serial.Serial(address, 9600)
 
