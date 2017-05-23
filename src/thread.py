@@ -9,7 +9,7 @@ import json
 from tinydb import TinyDB, where
 from sensor import Sensor
 
-from tools import *
+import tools
 
 
 class Main(QtCore.QThread):
@@ -75,7 +75,7 @@ class Main(QtCore.QThread):
         '''
         self.sensors[key]['interval'] = interval
         print("Interval sensoru `{}` nastaven na {}.".format(
-            self.sensors[key]['name'], pretty_time(interval)))
+            self.sensors[key]['name'], tools.pretty_time(interval)))
 
     def turn(self, k, status):
         st = ['vypnut', 'zapnut']

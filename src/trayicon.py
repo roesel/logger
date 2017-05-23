@@ -8,7 +8,7 @@ import errno
 import json
 from tinydb import TinyDB, where
 
-from tools import *
+import tools
 
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
@@ -49,7 +49,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
             self.interval_items[k] = {}
             for i in self.intervals:
-                item_interval = submenu.addAction(pretty_time(i))
+                item_interval = submenu.addAction(tools.pretty_time(i))
                 item_interval.triggered.connect(functools.partial(self.thread.set_interval, k, i))
                 item_interval.triggered.connect(functools.partial(self.updateIntervals, k, i))
                 self.interval_items[k][i] = item_interval

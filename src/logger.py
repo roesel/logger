@@ -11,7 +11,7 @@ from tinydb import TinyDB, where
 from thread import Main
 from trayicon import SystemTrayIcon
 
-# TODO: rozdělit do více souborů po objektech -> SKORO -> tools do vlastního modulu a rozházet do složek?
+# DONE: rozdělit do více souborů po objektech
 # TODO: přejmenovat objekty (Sensor->Arduino)
 # TODO: vyhodit formátovací fce pryč od logickejch
 # TODO: conf: více cest kam ukládat
