@@ -20,11 +20,13 @@ class Thread(QtCore.QThread):
         QtCore.QThread.__init__(self)
         self.s1 = Arduino(config['port'])
         self.sensors = config['sensors']
-        self.db_folder = config['db_folder']
+        self.db_folders = config['db_folders']
 
-        self.make_sure_path_exists(self.db_folder)
-        for k in self.sensors:
-            self.make_sure_path_exists(self.db_folder + "/" + k)
+        for db_folder in self.db_folders:
+            self.make_sure_path_exists(db_folder)
+            for k in self.sensors:
+                self.make_sure_path_exists(db_folder + "/" + k + "_json")
+                self.make_sure_path_exists(db_folder + "/" + k + "_txt")
 
         for k, d in self.sensors.items():
             d['on'] = False
@@ -44,8 +46,14 @@ class Thread(QtCore.QThread):
         if self.date != self.get_current_date():
             self.date = self.get_current_date()
         for key in self.sensors:
-            self.sensors[key]['db'] = TinyDB(
-                self.db_folder + key + "/" + key + "_" + self.date + ".json", default_table='arduino', sort_keys=True, indent=4)
+            self.sensors[key]['dbs'] = []
+            self.sensors[key]['txts'] = []
+            for db_folder in self.db_folders:
+                db_object = TinyDB(db_folder + key + "_json/" + key + "_" + self.date +
+                                   ".json", default_table='arduino', sort_keys=True, indent=4)
+                self.sensors[key]['dbs'].append(db_object)
+                txt_name = db_folder + key + "_txt/" + key + "_" + self.date + ".txt"
+                self.sensors[key]['txts'].append(txt_name)
 
     def get_current_date(self):
         date = datetime.now().strftime("%y-%m-%d")
@@ -66,7 +74,23 @@ class Thread(QtCore.QThread):
 
     def insert(self, sensor_key, reading):
         # TinyDB local storage
-        self.sensors[sensor_key]['db'].insert(reading)
+        for db in self.sensors[sensor_key]['dbs']:
+            db.insert(reading)
+        # TXT local storage
+        for txt in self.sensors[sensor_key]['txts']:
+            self.insert_txt(txt, sensor_key, reading)
+
+    def insert_txt(self, fname, sensor_key, reading):
+        if not os.path.isfile(fname):
+            with open(fname, "w", encoding="utf-8") as f:
+                header = "# "
+                header += '\t'.join(reading.keys())
+                header += "\n"
+                f.write(header)
+        with open(fname, "a", encoding="utf-8") as f:
+            line = '\t'.join(str(e) for e in reading.values())
+            line += "\n"
+            f.write(line)
 
     def get_measurement(self, sensor_key):
         reading = self.s1.read(str.encode(self.sensors[sensor_key]["key"]))

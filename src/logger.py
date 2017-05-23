@@ -14,10 +14,13 @@ from trayicon import SystemTrayIcon
 # DONE: rozdělit do více souborů po objektech
 # DONE: přejmenovat objekty (Sensor->Arduino)
 # DONE: vyhodit formátovací fce pryč od logickejch
-# TODO: conf: více cest kam ukládat
-# TODO: conf: více formátů, do kterých ukládat
+# DONE: conf: více cest kam ukládat
+# DONE: conf: více formátů, do kterých ukládat
 # DONE: pojmenovat senzory, každýmu vlastní soubor/složku
 # DONE: zatím jsem neudělal persistent saving - asi z principu nechceme?
+# TODO: cleanup: s1/sensor/arduino
+# TODO: cleanup: místo db_names save_locations
+# TODO: cleanup: formáty ukládání (jako parametr)
 
 
 def load_config():
