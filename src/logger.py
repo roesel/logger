@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 from PyQt5 import QtGui, QtCore, QtWidgets
 from datetime import datetime
@@ -31,7 +32,7 @@ def load_config():
         with open(config_filename) as jsonfile:
             config = json.load(jsonfile)
 
-        #print(config)
+        print(config)
 
     else:  # If it doesn't exist, load sample and save config
         with open(config_sample_filename) as jsonfile:

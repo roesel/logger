@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 def pretty_time(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
@@ -18,5 +19,5 @@ def min_label(minutes):
     return {1: 'minuta', 2: 'minuty', 3: 'minuty', 4: 'minuty'}.get(minutes, 'minut')
 
 
-def sec_label(minutes):
-    return {1: 'vteřina', 2: 'vteřiny', 3: 'vteřiny', 4: 'vteřiny'}.get(minutes, 'vtěřin')
+def sec_label(seconds):
+    return {1: 'sekunda', 2: 'sekundy', 3: 'sekundy', 4: 'sekundy'}.get(seconds, 'sekund')
